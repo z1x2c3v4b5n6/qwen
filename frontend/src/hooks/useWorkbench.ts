@@ -18,8 +18,10 @@ import {
   检索片段,
   重命名会话
 } from '../services/api';
+import { 读取运行时配置 } from '../config/runtime';
 
 export function useWorkbench() {
+  const [运行时地址, set运行时地址] = useState('读取中...');
   const [健康, set健康] = useState<any>(null);
   const [ollama, setOllama] = useState<any>(null);
   const [模型列表, set模型列表] = useState<any[]>([]);
@@ -54,6 +56,9 @@ export function useWorkbench() {
   }
 
   async function 刷新基础状态() {
+    const runtime = await 读取运行时配置();
+    set运行时地址(runtime.base_url);
+
     const [h, o, m] = await Promise.all([获取健康状态(), 获取Ollama状态(), 获取模型列表()]);
     if (h.success) set健康(h.data);
     if (o.success) setOllama(o.data);
@@ -243,6 +248,7 @@ export function useWorkbench() {
 
   return {
     状态: {
+      运行时地址,
       健康,
       ollama,
       当前模型名,

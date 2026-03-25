@@ -32,6 +32,7 @@ export default function App() {
       </aside>
 
       <ChatPanel
+        运行时地址={状态.运行时地址}
         健康={状态.健康}
         ollama={状态.ollama}
         当前模型名={状态.当前模型名}
