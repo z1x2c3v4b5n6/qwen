@@ -11,6 +11,7 @@ def get_connection() -> sqlite3.Connection:
     cfg = load_config()
     conn = sqlite3.connect(cfg.db_path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 
@@ -35,35 +36,34 @@ def init_db() -> None:
                 description TEXT,
                 default_model TEXT,
                 system_prompt TEXT,
-                knowledge_base_path TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE INDEX IF NOT EXISTS idx_workspaces_updated_at ON workspaces(updated_at DESC);
 
             CREATE TABLE IF NOT EXISTS conversations (
                 id TEXT PRIMARY KEY,
                 workspace_id TEXT NOT NULL,
                 title TEXT NOT NULL,
-                mode TEXT NOT NULL,
                 last_message_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                FOREIGN KEY(workspace_id) REFERENCES workspaces(id)
+                FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
             );
+            CREATE INDEX IF NOT EXISTS idx_conversations_workspace_updated
+            ON conversations(workspace_id, updated_at DESC);
 
             CREATE TABLE IF NOT EXISTS messages (
                 id TEXT PRIMARY KEY,
                 conversation_id TEXT NOT NULL,
                 role TEXT NOT NULL,
                 content TEXT NOT NULL,
-                status TEXT,
-                token_count INTEGER,
-                latency_ms INTEGER,
                 model_name TEXT,
-                parent_message_id TEXT,
                 created_at TEXT NOT NULL,
-                FOREIGN KEY(conversation_id) REFERENCES conversations(id)
+                FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
             );
+            CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
+            ON messages(conversation_id, created_at ASC);
 
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
@@ -78,8 +78,12 @@ def init_db() -> None:
                 error_message TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                FOREIGN KEY(workspace_id) REFERENCES workspaces(id)
+                FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
             );
+            CREATE INDEX IF NOT EXISTS idx_documents_workspace_updated
+            ON documents(workspace_id, updated_at DESC);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_workspace_hash
+            ON documents(workspace_id, hash_sha256);
 
             CREATE TABLE IF NOT EXISTS document_chunks (
                 id TEXT PRIMARY KEY,
@@ -91,9 +95,11 @@ def init_db() -> None:
                 metadata_json TEXT,
                 embedding_vector TEXT,
                 created_at TEXT NOT NULL,
-                FOREIGN KEY(document_id) REFERENCES documents(id),
-                FOREIGN KEY(workspace_id) REFERENCES workspaces(id)
+                FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
+                FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
             );
+            CREATE INDEX IF NOT EXISTS idx_chunks_document ON document_chunks(document_id, chunk_index);
+            CREATE INDEX IF NOT EXISTS idx_chunks_workspace ON document_chunks(workspace_id);
 
             CREATE VIRTUAL TABLE IF NOT EXISTS document_chunks_fts USING fts5(
                 chunk_id,

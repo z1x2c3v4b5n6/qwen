@@ -20,3 +20,9 @@ export interface 健康响应 {
   database_path: string;
   data_dir: string;
 }
+
+export interface 通用响应<T> {
+  success: boolean;
+  data?: T;
+  error?: { code: string; message: string };
+}
