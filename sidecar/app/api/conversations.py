@@ -3,7 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.repositories.conversation_repo import create_conversation, delete_conversation, list_conversations, rename_conversation
+from app.repositories.conversation_repo import (
+    create_conversation,
+    delete_conversation,
+    get_conversation,
+    list_conversations,
+    rename_conversation,
+)
 from app.repositories.message_repo import list_messages
 from app.repositories.workspace_repo import get_workspace
 from app.utils.response import fail, ok
@@ -53,4 +59,7 @@ def remove(conversation_id: str) -> dict:
 
 @router.get("/conversations/{conversation_id}/messages")
 def messages(conversation_id: str) -> dict:
+    conversation = get_conversation(conversation_id)
+    if not conversation:
+        raise fail("CONVERSATION_NOT_FOUND")
     return ok({"items": list_messages(conversation_id)})

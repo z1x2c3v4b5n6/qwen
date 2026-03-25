@@ -4,13 +4,19 @@ import {
   创建会话,
   创建工作区,
   发送聊天,
+  删除会话,
+  删除工作区,
+  删除文档,
   获取会话列表,
   获取健康状态,
   获取模型列表,
   获取Ollama状态,
   获取工作区列表,
   获取消息列表,
-  检索片段
+  获取文档列表,
+  更新工作区,
+  检索片段,
+  重命名会话
 } from './services/api';
 
 export default function App() {
@@ -24,6 +30,7 @@ export default function App() {
   const [当前会话, set当前会话] = useState<any | null>(null);
   const [消息列表, set消息列表] = useState<any[]>([]);
 
+  const [文档列表, set文档列表] = useState<any[]>([]);
   const [新工作区名, set新工作区名] = useState('默认工作区');
   const [输入, set输入] = useState('');
   const [错误, set错误] = useState<string | null>(null);
@@ -43,25 +50,48 @@ export default function App() {
   async function 刷新工作区() {
     const res = await 获取工作区列表();
     if (!res.success) return set错误(res.error?.message ?? '获取工作区失败');
-    set工作区列表(res.data?.items ?? []);
-    if (!当前工作区 && (res.data?.items?.length ?? 0) > 0) {
-      set当前工作区(res.data?.items?.[0]);
+    const items = res.data?.items ?? [];
+    set工作区列表(items);
+
+    if (!items.length) {
+      set当前工作区(null);
+      set当前会话(null);
+      set会话列表([]);
+      set消息列表([]);
+      set文档列表([]);
+      return;
     }
+
+    const current = 当前工作区 ? items.find((w) => w.id === 当前工作区.id) : null;
+    set当前工作区(current ?? items[0]);
   }
 
   async function 刷新会话(workspaceId: string) {
     const res = await 获取会话列表(workspaceId);
     if (!res.success) return set错误(res.error?.message ?? '获取会话失败');
-    set会话列表(res.data?.items ?? []);
-    if (!当前会话 && (res.data?.items?.length ?? 0) > 0) {
-      set当前会话(res.data?.items?.[0]);
+    const items = res.data?.items ?? [];
+    set会话列表(items);
+
+    if (!items.length) {
+      set当前会话(null);
+      set消息列表([]);
+      return;
     }
+
+    const current = 当前会话 ? items.find((c) => c.id === 当前会话.id) : null;
+    set当前会话(current ?? items[0]);
   }
 
   async function 刷新消息(conversationId: string) {
     const res = await 获取消息列表(conversationId);
     if (!res.success) return set错误(res.error?.message ?? '获取消息失败');
     set消息列表(res.data?.items ?? []);
+  }
+
+  async function 刷新文档(workspaceId: string) {
+    const res = await 获取文档列表(workspaceId);
+    if (!res.success) return set错误(res.error?.message ?? '获取文档失败');
+    set文档列表(res.data?.items ?? []);
   }
 
   useEffect(() => {
@@ -74,6 +104,7 @@ export default function App() {
   useEffect(() => {
     if (!当前工作区) return;
     void 刷新会话(当前工作区.id);
+    void 刷新文档(当前工作区.id);
   }, [当前工作区?.id]);
 
   useEffect(() => {
@@ -93,12 +124,55 @@ export default function App() {
     await 刷新工作区();
   }
 
+  async function 重命名当前工作区() {
+    if (!当前工作区) return;
+    const name = window.prompt('请输入新的工作区名称', 当前工作区.name);
+    if (!name?.trim()) return;
+    const res = await 更新工作区(当前工作区.id, {
+      name: name.trim(),
+      description: 当前工作区.description ?? '',
+      default_model: 当前工作区.default_model ?? '',
+      system_prompt: 当前工作区.system_prompt ?? ''
+    });
+    if (!res.success) return set错误(res.error?.message ?? '重命名工作区失败');
+    await 刷新工作区();
+  }
+
+  async function 删除当前工作区() {
+    if (!当前工作区) return;
+    const ok = window.confirm(`确认删除工作区「${当前工作区.name}」吗？`);
+    if (!ok) return;
+    const res = await 删除工作区(当前工作区.id);
+    if (!res.success) return set错误(res.error?.message ?? '删除工作区失败');
+    await 刷新工作区();
+  }
+
   async function 新建会话() {
     if (!当前工作区) return;
     const res = await 创建会话(当前工作区.id, `会话 ${new Date().toLocaleTimeString()}`);
     if (!res.success) return set错误(res.error?.message ?? '创建会话失败');
     await 刷新会话(当前工作区.id);
     set当前会话(res.data);
+  }
+
+  async function 重命名当前会话() {
+    if (!当前会话) return;
+    const title = window.prompt('请输入新的会话名称', 当前会话.title);
+    if (!title?.trim()) return;
+    const res = await 重命名会话(当前会话.id, title.trim());
+    if (!res.success) return set错误(res.error?.message ?? '重命名会话失败');
+    if (!当前工作区) return;
+    await 刷新会话(当前工作区.id);
+  }
+
+  async function 删除当前会话() {
+    if (!当前会话) return;
+    const ok = window.confirm(`确认删除会话「${当前会话.title}」吗？`);
+    if (!ok) return;
+    const res = await 删除会话(当前会话.id);
+    if (!res.success) return set错误(res.error?.message ?? '删除会话失败');
+    if (!当前工作区) return;
+    await 刷新会话(当前工作区.id);
   }
 
   async function 发送() {
@@ -118,6 +192,15 @@ export default function App() {
     const res = await 上传文档(当前工作区.id, file);
     if (!res.success) return set错误(res.error?.message ?? '上传失败');
     set错误(null);
+    await 刷新文档(当前工作区.id);
+  }
+
+  async function 删除某个文档(id: string) {
+    const ok = window.confirm('确认删除该文档吗？');
+    if (!ok || !当前工作区) return;
+    const res = await 删除文档(id);
+    if (!res.success) return set错误(res.error?.message ?? '删除文档失败');
+    await 刷新文档(当前工作区.id);
   }
 
   async function 查询片段() {
@@ -132,7 +215,11 @@ export default function App() {
       <aside style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
         <h3>工作区</h3>
         <input value={新工作区名} onChange={(e) => set新工作区名(e.target.value)} />
-        <button onClick={新建工作区}>新建工作区</button>
+        <div>
+          <button onClick={新建工作区}>新建</button>
+          <button onClick={重命名当前工作区} disabled={!当前工作区}>重命名</button>
+          <button onClick={删除当前工作区} disabled={!当前工作区}>删除</button>
+        </div>
         <ul>
           {工作区列表.map((w) => (
             <li key={w.id}>
@@ -142,7 +229,11 @@ export default function App() {
         </ul>
         <hr />
         <h3>会话</h3>
-        <button onClick={新建会话}>新建会话</button>
+        <div>
+          <button onClick={新建会话} disabled={!当前工作区}>新建</button>
+          <button onClick={重命名当前会话} disabled={!当前会话}>重命名</button>
+          <button onClick={删除当前会话} disabled={!当前会话}>删除</button>
+        </div>
         <ul>
           {会话列表.map((c) => (
             <li key={c.id}>
@@ -153,7 +244,7 @@ export default function App() {
       </aside>
 
       <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
-        <h2>中文本地 AI 工作台（第三阶段 A 最小实现）</h2>
+        <h2>中文本地 AI 工作台（第三阶段 A 前端补丁）</h2>
         <p>Ollama 状态：{ollama?.available ? '可用' : '不可用'}，模型数：{ollama?.model_count ?? '-'}</p>
         <p>当前工作区：{当前工作区?.name ?? '未选择'}，当前会话：{当前会话?.title ?? '未选择'}</p>
         <div style={{ minHeight: 340, border: '1px solid #eee', padding: 8 }}>
@@ -171,10 +262,19 @@ export default function App() {
 
       <aside style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
         <h3>知识库（txt/md）</h3>
-        <input type="file" accept=".txt,.md" onChange={上传} />
+        <input type="file" accept=".txt,.md" onChange={上传} disabled={!当前工作区} />
+        <h4>文档列表</h4>
+        <ul>
+          {文档列表.map((d) => (
+            <li key={d.id}>
+              {d.file_name}
+              <button onClick={() => 删除某个文档(d.id)}>删除</button>
+            </li>
+          ))}
+        </ul>
         <h4>检索片段</h4>
         <input value={检索词} onChange={(e) => set检索词(e.target.value)} placeholder="输入关键词" />
-        <button onClick={查询片段}>检索</button>
+        <button onClick={查询片段} disabled={!当前工作区}>检索</button>
         <ul>
           {检索结果.map((r) => (
             <li key={r.chunk_id}>

@@ -24,7 +24,7 @@ def documents(workspace_id: str) -> dict:
 def delete_document(document_id: str) -> dict:
     deleted = remove_document(document_id)
     if not deleted:
-        raise fail("INTERNAL_ERROR", "删除文档失败或文档不存在。", 404)
+        raise fail("DOCUMENT_NOT_FOUND")
     return ok({"deleted": True})
 
 
