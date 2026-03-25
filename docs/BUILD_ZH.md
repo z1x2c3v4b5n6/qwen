@@ -1,34 +1,16 @@
-# 构建说明（第二阶段补丁版）
+# BUILD（当前阶段）
 
-## 当前状态说明（避免误解）
+## 当前重点
+本阶段先保证本机真实联调，不进入 externalBin 一体化打包。
 
-本阶段目标是“开发态闭环稳定 + 发布态路径方案明确”，不是完整一体化交付。
-
-### 已完成
-
-- 前端可构建
-- Tauri 壳可构建
-- sidecar 可单独运行
-- 发布态 runtime 配置读取桥接方案（Tauri `get_runtime_config`）
-
-### 未完成
-
-- Tauri 自动拉起 sidecar
-- sidecar externalBin 打包进安装包
-- 安装后开箱即用的一体化 sidecar 生命周期管理
-
-## 1. 前端构建
-
+## 前端构建
 ```powershell
 cd frontend
 npm install
 npm run build
 ```
 
-产物目录：`frontend/dist`
-
-## 2. sidecar 运行（本阶段）
-
+## sidecar 运行
 ```powershell
 cd sidecar
 py -3.11 -m venv .venv
@@ -37,24 +19,36 @@ pip install -r requirements.txt
 python run_sidecar.py
 ```
 
-## 3. Tauri 构建
-
+## Tauri 开发运行
 ```powershell
-cargo tauri build
+cargo tauri dev
 ```
 
-安装包产物通常位于：
-- `src-tauri/target/release/bundle/`
+## 本机联调检查清单
 
-## 4. 发布态配置读取方案
+1. health 检查
+```powershell
+curl http://127.0.0.1:18080/api/v1/health
+```
 
-- 前端不再依赖打包静态 `/runtime.json`
-- 前端统一调用 runtime service
-- runtime service 在 Tauri 环境下调用 Rust 命令 `get_runtime_config`
-- Rust 从应用数据目录读取真实 `runtime.json` 并返回
+2. runtime 检查
+```powershell
+curl http://127.0.0.1:18080/api/v1/runtime
+```
 
-## 5. 第四阶段计划（再做）
+3. Ollama status/list 检查
+```powershell
+curl http://127.0.0.1:18080/api/v1/models/ollama/status
+curl http://127.0.0.1:18080/api/v1/models/ollama/list
+```
 
-- sidecar 打包为独立可执行文件
-- externalBin 配置与生命周期接入
-- 真正一体化安装包交付
+4. chat 检查（先创建 workspace 和 conversation）
+```powershell
+curl -X POST http://127.0.0.1:18080/api/v1/chat -H "Content-Type: application/json" -d "{\"workspace_id\":\"<id>\",\"conversation_id\":\"<id>\",\"user_message\":\"你好\"}"
+```
+
+5. knowledge upload/search 检查
+```powershell
+curl -X POST http://127.0.0.1:18080/api/v1/knowledge/upload -F "workspace_id=<id>" -F "file=@demo.md"
+curl "http://127.0.0.1:18080/api/v1/knowledge/search?workspace_id=<id>&q=关键词"
+```

@@ -1,45 +1,30 @@
-# 本地 AI 工作台（第二阶段补丁版）
+# 本地 AI 工作台（第四阶段：结构整理回合）
 
-## 当前阶段定位（请先看）
-
-本项目当前是**第二阶段骨架 + 补丁回合**，目标是把开发态闭环做稳，不夸大为已完成一体化。
+## 当前阶段完成情况
 
 ### 已完成
+- 前端组件化拆分（WorkspacePanel / ConversationPanel / ChatPanel / KnowledgePanel / StatusPanel）
+- 第三阶段 A 能力保持可用：Ollama 检测、工作区/会话 CRUD、非流式聊天、txt/md 上传与 FTS 检索
+- 统一运行时配置读取（开发态 runtime.json + 发布态 Tauri bridge）
 
-- Tauri 2 桌面壳骨架（可打开窗口）
-- React + TypeScript 中文基础页面
-- Python FastAPI sidecar 基础服务
-- SQLite 自动初始化（含核心表）
-- `/api/v1/health` 与 `/api/v1/runtime` 诊断接口
-- 统一运行时配置读取入口（前端只走一个 runtime service）
-- 开发态端口冲突回退与 runtime.json 同步
-
-### 未完成（本阶段明确不做）
-
-- Tauri 自动拉起 sidecar（当前仍需手动先启动 sidecar）
-- sidecar 打包进安装包并由 Tauri externalBin 一体化管理
+### 本回合未做（仍禁止）
 - 流式聊天
-- Ollama 真正对话调用
 - PDF 解析
-- 导出 Markdown / PDF
-- 完整 RAG / embedding pipeline
+- 导出 Markdown/PDF
+- embedding / RAG
+- externalBin 一体化打包
+- sidecar 自动拉起
 
-## 目录说明
+## 目录变化（前端）
+- `frontend/src/components/WorkspacePanel.tsx`
+- `frontend/src/components/ConversationPanel.tsx`
+- `frontend/src/components/ChatPanel.tsx`
+- `frontend/src/components/KnowledgePanel.tsx`
+- `frontend/src/components/StatusPanel.tsx`
+- `frontend/src/hooks/useWorkbench.ts`
 
-- `frontend/`：前端工程（中文基础页 + 统一 runtime 读取）
-- `sidecar/`：FastAPI 服务（健康接口、运行时接口、SQLite 初始化）
-- `src-tauri/`：Tauri 桌面壳（提供 `get_runtime_config` 桥接命令）
-- `data/`：开发态数据目录（db、logs、runtime.json）
-- `docs/`：中文文档
-
-## 开发态与发布态配置读取链
-
-### 开发态
-
-`run_sidecar.py` -> 写 `data/runtime.json` + 同步 `frontend/public/runtime.json` -> 前端 runtime service 读 `/runtime.json` -> 调 `/api/v1/health`
-
-### 发布态（方案已落地到前端读取入口）
-
-前端 runtime service -> 调 Tauri 命令 `get_runtime_config` -> Rust 读取应用数据目录 `runtime.json` -> 返回真实 `base_url`
-
-> 注意：发布态方案已给出读取链与代码入口；但“sidecar 打包进安装包 + 自动拉起”仍未完成。
+## 真实运行链路
+1. 先启动 Ollama
+2. 再启动 sidecar
+3. 再启动前端（或 Tauri dev）
+4. 在页面中检查健康状态、Ollama 状态、模型信息
