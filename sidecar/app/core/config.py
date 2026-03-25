@@ -5,6 +5,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -69,14 +70,20 @@ def ensure_directories(cfg: AppConfig) -> None:
     cfg.logs_dir.mkdir(parents=True, exist_ok=True)
 
 
-def write_runtime_json(port: int, status: str = "starting") -> None:
+def write_runtime_json(runtime_payload: dict[str, Any]) -> None:
+    """统一运行时状态写入函数。
+
+    约束：仅由 run_sidecar.py 调用，避免多个来源覆盖端口。
+    """
     cfg = load_config()
     payload = {
-        "host": cfg.host,
-        "port": port,
-        "base_url": f"http://{cfg.host}:{port}",
-        "status": status,
+        "host": runtime_payload["host"],
+        "port": int(runtime_payload["port"]),
+        "base_url": runtime_payload["base_url"],
+        "pid": int(runtime_payload["pid"]),
+        "status": runtime_payload["status"],
         "env_mode": cfg.env_mode,
+        "data_dir": str(cfg.data_dir),
         "updated_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
     }
 
@@ -89,3 +96,18 @@ def write_runtime_json(port: int, status: str = "starting") -> None:
         cfg.frontend_runtime_json_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
+
+
+def read_runtime_json() -> dict[str, Any]:
+    cfg = load_config()
+    if not cfg.runtime_json_path.exists():
+        return {
+            "host": cfg.host,
+            "port": cfg.default_port,
+            "base_url": f"http://{cfg.host}:{cfg.default_port}",
+            "pid": 0,
+            "status": "offline",
+            "env_mode": cfg.env_mode,
+            "data_dir": str(cfg.data_dir),
+        }
+    return json.loads(cfg.runtime_json_path.read_text(encoding="utf-8"))

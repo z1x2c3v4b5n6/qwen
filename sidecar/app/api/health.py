@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
-from app.core.config import load_config
+from app.core.config import load_config, read_runtime_json
 
 router = APIRouter(prefix="/api/v1", tags=["health"])
 
@@ -13,12 +13,16 @@ router = APIRouter(prefix="/api/v1", tags=["health"])
 @router.get("/health")
 def health_check() -> dict:
     cfg = load_config()
+    runtime = read_runtime_json()
     return {
         "status": "ok",
         "service": "sidecar",
+        "app_name": cfg.app_name,
         "version": cfg.app_version,
+        "mode": cfg.env_mode,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "env_mode": cfg.env_mode,
+        "runtime_base_url": runtime.get("base_url"),
+        "runtime_port": runtime.get("port"),
+        "database_path": str(cfg.db_path),
         "data_dir": str(cfg.data_dir),
-        "db_path": str(cfg.db_path),
     }

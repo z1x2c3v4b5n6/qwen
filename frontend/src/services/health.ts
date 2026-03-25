@@ -14,3 +14,13 @@ export async function 拉取健康状态(): Promise<{ 运行时: 运行时配置
     return { 运行时, 健康: null, 错误: e instanceof Error ? e.message : '未知错误' };
   }
 }
+
+export async function 拉取运行时状态(baseUrl: string): Promise<Record<string, unknown> | null> {
+  try {
+    const resp = await fetch(`${baseUrl}/api/v1/runtime`, { cache: 'no-store' });
+    if (!resp.ok) return null;
+    return (await resp.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
