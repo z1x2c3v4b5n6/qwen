@@ -1,0 +1,7 @@
+node_modules/
+frontend/dist/
+sidecar/.venv/
+__pycache__/
+*.pyc
+src-tauri/target/
+data/
