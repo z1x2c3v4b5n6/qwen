@@ -1,0 +1,10 @@
+{
+  "host": "127.0.0.1",
+  "port": 18081,
+  "base_url": "http://127.0.0.1:18081",
+  "pid": 5367,
+  "status": "online",
+  "env_mode": "development",
+  "data_dir": "/workspace/qwen/data",
+  "updated_at": "2026-03-25T10:08:05.143971Z"
+}
